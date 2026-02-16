@@ -9,19 +9,19 @@ import mongoose from "mongoose";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+let userEmail;
+
 export async function GET(request) {
   try {
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 
-    // Security Check
     if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({error: "Unauthorized"}, {status: 401});
     }
 
     await connectDB();
 
-    // 1. Fetch all products from MongoDB
     const products = await Product.find({});
     console.log(`Checking ${products.length} products...`);
 
@@ -47,7 +47,7 @@ export async function GET(request) {
           _id: new mongoose.Types.ObjectId(product.userId),
         });
 
-        const userEmail = user?.email;
+        userEmail = user?.email;
 
         console.log("Email: ", userEmail);
 
@@ -72,11 +72,12 @@ export async function GET(request) {
 
           // 5. If price dropped, send email via Resend
           if (newPrice < oldPrice && userEmail) {
-            await resend.emails.send({
-              from: process.env.RESEND_FROM_EMAIL,
-              to: user.email,
-              subject: `📉 Price Drop Alert: ${product.name}`,
-              html: `
+            try {
+              await resend.emails.send({
+                from: process.env.RESEND_FROM_EMAIL,
+                to: user.email,
+                subject: `📉 Price Drop Alert: ${product.name}`,
+                html: `
                 <div style="font-family: sans-serif; padding: 20px; color: #333;">
                   <h2 style="color: #f97316;">Great News, ${user?.name || "Customer"}!</h2>
                   <p>The price for <strong>${product.name}</strong> just dropped.</p>
@@ -86,8 +87,11 @@ export async function GET(request) {
                   <a href="${product.url}" style="background: #f97316; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px;">Buy it Now</a>
                 </div>
               `,
-            });
-            results.alertsSent++;
+              });
+              results.alertsSent++;
+            } catch (error) {
+              console.log("Email Sending Error: ", error);
+            }
           }
         }
 
@@ -98,7 +102,7 @@ export async function GET(request) {
       }
     }
 
-    return NextResponse.json({success: true, results});
+    return NextResponse.json({success: true, results, email: userEmail});
   } catch (error) {
     console.error("Cron error:", error);
     return NextResponse.json({error: error.message}, {status: 500});
