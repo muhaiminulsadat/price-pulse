@@ -1,6 +1,7 @@
 "use client";
 import {test} from "@/actions/test";
 import {authClient, googleLogin} from "@/lib/auth-client";
+import {sendEmail} from "@/lib/email";
 import {LogIn, LogOut} from "lucide-react";
 import {useRouter} from "next/navigation";
 
@@ -15,6 +16,14 @@ const Navbar = () => {
     router.refresh();
   };
 
+  const handleSendMail = async () => {
+    await sendEmail(
+      "tridib00000@gmail.com",
+      "Hello from my app!",
+      "<h1>Hi</h1><p>This is a test email. 3</p>",
+    );
+  };
+
   return (
     <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-black/60 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
@@ -22,6 +31,10 @@ const Navbar = () => {
         <div className="text-2xl font-black tracking-tighter text-white">
           PRICE<span className="text-orange-500">PULSE</span>
         </div>
+
+        {/* <button className="btn btn-primary" onClick={handleSendMail}>
+          Send Mail
+        </button> */}
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-4">

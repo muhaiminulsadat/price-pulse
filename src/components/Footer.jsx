@@ -7,7 +7,7 @@ export default function Footer() {
           PricePulse Smart Tracking
         </div>
 
-        <div className="flex flex-col items-center justify-center mt-10 gap-3">
+        <div className="flex flex-col items-center justify-center mt-6 gap-3">
           {/* Copyright */}
           <p className="text-gray-500 text-xs tracking-widest uppercase">
             © {new Date().getFullYear()} All Rights Reserved

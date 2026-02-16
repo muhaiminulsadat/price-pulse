@@ -1,10 +1,15 @@
 import {NextResponse} from "next/server";
 import {PriceHistory} from "@/models/priceHistory.model";
+import {Resend} from "resend";
 import connectDB from "@/lib/db";
 import {Product} from "@/models/product.model";
 import {scrapeProduct} from "@/lib/firecrawl";
+import {getCurrentUser} from "@/actions/user.action";
 import mongoose from "mongoose";
-import {sendEmail} from "@/lib/email";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+let userEmail;
 
 export async function GET(request) {
   try {
@@ -30,19 +35,10 @@ export async function GET(request) {
 
     for (const product of products) {
       try {
-        if (!mongoose.Types.ObjectId.isValid(product.userId)) {
-          console.warn(
-            `Invalid userId for product ${product._id}: ${product.userId}`,
-          );
-          results.failed++;
-          continue;
-        }
-
+        // 2. Scrape the current website price
         const scrapedData = await scrapeProduct(product.url);
+
         if (!scrapedData || !scrapedData.currentPrice) {
-          console.warn(
-            `No price data for product ${product._id} (${product.url})`,
-          );
           results.failed++;
           continue;
         }
@@ -51,37 +47,37 @@ export async function GET(request) {
           _id: new mongoose.Types.ObjectId(product.userId),
         });
 
-        const userEmail = user?.email;
-        console.log(`Product ${product._id} – user email:`, userEmail);
+        userEmail = user?.email;
 
-        const priceString = String(scrapedData.currentPrice);
-        const cleanPrice = priceString.replace(/[^0-9.-]/g, "");
-        const newPrice = parseFloat(cleanPrice);
-        if (isNaN(newPrice)) {
-          console.warn(
-            `Invalid price for product ${product._id}: ${scrapedData.currentPrice}`,
-          );
-          results.failed++;
-          continue;
-        }
+        console.log("Email: ", userEmail);
+
+        const newPrice = parseFloat(scrapedData.currentPrice);
         const oldPrice = parseFloat(product.currentPrice);
 
+        // 3. Update the Product in MongoDB
         product.currentPrice = newPrice;
         product.name = scrapedData.name || product.name;
         product.imageUrl = scrapedData.imageUrl || product.imageUrl;
         await product.save();
 
+        // 4. If price changed, save history
         if (oldPrice !== newPrice) {
           await PriceHistory.create({
             productId: product._id,
             price: newPrice,
             currency: scrapedData.currency || product.currency,
           });
+
           results.priceChanges++;
 
+          // 5. If price dropped, send email via Resend
           if (newPrice < oldPrice && userEmail) {
             try {
-              const html = `
+              await resend.emails.send({
+                from: process.env.RESEND_FROM_EMAIL,
+                to: user.email,
+                subject: `📉 Price Drop Alert: ${product.name}`,
+                html: `
                 <div style="font-family: sans-serif; padding: 20px; color: #333;">
                   <h2 style="color: #f97316;">Great News, ${user?.name || "Customer"}!</h2>
                   <p>The price for <strong>${product.name}</strong> just dropped.</p>
@@ -90,46 +86,25 @@ export async function GET(request) {
                   <br />
                   <a href="${product.url}" style="background: #f97316; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px;">Buy it Now</a>
                 </div>
-              `;
-              const result = await sendEmail(
-                userEmail,
-                `📉 Price Drop Alert: ${product.name}`,
-                html,
-              );
-
-              if (result.success) {
-                results.alertsSent++;
-                console.log(
-                  `Alert sent for product ${product._id} to ${userEmail}`,
-                );
-              } else {
-                console.error(
-                  `Failed to send email for product ${product._id}:`,
-                  result.error,
-                );
-              }
-            } catch (emailError) {
-              console.error(
-                `Email error for product ${product._id}:`,
-                emailError,
-              );
+              `,
+              });
+              results.alertsSent++;
+            } catch (error) {
+              console.log("Email Sending Error: ", error);
             }
           }
         }
 
         results.updated++;
       } catch (error) {
-        console.error(
-          `Unhandled error with product ${product._id}:`,
-          error.message,
-        );
+        console.error(`Error with product ${product._id}:`, error);
         results.failed++;
       }
     }
 
-    return NextResponse.json({success: true, results});
+    return NextResponse.json({success: true, results, email: userEmail});
   } catch (error) {
-    console.error("Cron job fatal error:", error);
+    console.error("Cron error:", error);
     return NextResponse.json({error: error.message}, {status: 500});
   }
 }

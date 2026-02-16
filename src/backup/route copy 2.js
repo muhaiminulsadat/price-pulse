@@ -4,7 +4,8 @@ import connectDB from "@/lib/db";
 import {Product} from "@/models/product.model";
 import {scrapeProduct} from "@/lib/firecrawl";
 import mongoose from "mongoose";
-import {sendEmail} from "@/lib/email";
+import {sendEmail} from "@/lib/email"; // Your nodemailer function
+import {success} from "zod";
 
 export async function GET(request) {
   try {
@@ -30,6 +31,7 @@ export async function GET(request) {
 
     for (const product of products) {
       try {
+        // --- 1. Validate userId before using it ---
         if (!mongoose.Types.ObjectId.isValid(product.userId)) {
           console.warn(
             `Invalid userId for product ${product._id}: ${product.userId}`,
@@ -38,24 +40,28 @@ export async function GET(request) {
           continue;
         }
 
+        // --- 2. Scrape current data ---
         const scrapedData = await scrapeProduct(product.url);
         if (!scrapedData || !scrapedData.currentPrice) {
           console.warn(
             `No price data for product ${product._id} (${product.url})`,
           );
           results.failed++;
+          NextResponse.json({success: false, message: "Failed to scrap data."});
           continue;
         }
 
-        const user = await mongoose.connection.db.collection("user").findOne({
+        // --- 3. Fetch the user who owns this product ---
+        // Collection name is likely "users" (plural) if your model is named "User"
+        const user = await mongoose.connection.db.collection("users").findOne({
           _id: new mongoose.Types.ObjectId(product.userId),
         });
 
         const userEmail = user?.email;
         console.log(`Product ${product._id} – user email:`, userEmail);
 
-        const priceString = String(scrapedData.currentPrice);
-        const cleanPrice = priceString.replace(/[^0-9.-]/g, "");
+        // --- 4. Sanitise and parse prices ---
+        const cleanPrice = scrapedData.currentPrice.replace(/[^0-9.-]/g, "");
         const newPrice = parseFloat(cleanPrice);
         if (isNaN(newPrice)) {
           console.warn(
@@ -66,19 +72,23 @@ export async function GET(request) {
         }
         const oldPrice = parseFloat(product.currentPrice);
 
+        // --- 5. Update product ---
         product.currentPrice = newPrice;
         product.name = scrapedData.name || product.name;
         product.imageUrl = scrapedData.imageUrl || product.imageUrl;
         await product.save();
 
+        // --- 6. If price changed, record history ---
         if (oldPrice !== newPrice) {
           await PriceHistory.create({
             productId: product._id,
             price: newPrice,
             currency: scrapedData.currency || product.currency,
           });
+
           results.priceChanges++;
 
+          // --- 7. If price dropped and we have an email, send alert ---
           if (newPrice < oldPrice && userEmail) {
             try {
               const html = `
@@ -91,6 +101,7 @@ export async function GET(request) {
                   <a href="${product.url}" style="background: #f97316; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px;">Buy it Now</a>
                 </div>
               `;
+
               const result = await sendEmail(
                 userEmail,
                 `📉 Price Drop Alert: ${product.name}`,
