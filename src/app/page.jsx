@@ -1,4 +1,4 @@
-"";
+
 import AuthModal from "@/components/AuthModal";
 import AddProductForm from "@/components/AddProductForm"; // Import your form
 import {TrendingDown, Shield, Bell, Rabbit} from "lucide-react";
@@ -6,6 +6,7 @@ import {authClient} from "@/lib/auth-client";
 import {getPriceHistory, getProducts} from "@/actions/product.action";
 import {getSession} from "@/lib/auth";
 import ProductCard from "@/components/ProductCard";
+import {test} from "@/actions/test";
 
 export default async function Home() {
   const session = await getSession();
@@ -41,6 +42,7 @@ export default async function Home() {
           <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 uppercase tracking-widest">
             🚀 Smart Price Tracking
           </div>
+          
 
           <h2 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight bg-gradient-to-b from-white to-gray-400 bg-clip-text text-transparent">
             Never Miss a <br />{" "}

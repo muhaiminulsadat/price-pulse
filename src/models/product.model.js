@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const ProductSchema = new mongoose.Schema(
   {
-    userId: {type: String, required: true},
+    userId: {type: String, required: true, ref: "user"},
     url: {type: String, required: true},
     name: {type: String, required: true}, // Changed from title to match function
     imageUrl: {type: String}, // Changed from image to match function

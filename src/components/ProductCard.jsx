@@ -12,6 +12,7 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import {deleteProduct, getPriceHistory} from "@/actions/product.action";
 import PriceChart from "./PriceChart";
+import {test} from "@/actions/test";
 
 export default function ProductCard({product}) {
   const [showChart, setShowChart] = useState(false);

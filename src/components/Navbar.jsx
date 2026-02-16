@@ -1,4 +1,5 @@
 "use client";
+import {test} from "@/actions/test";
 import {authClient, googleLogin} from "@/lib/auth-client";
 import {LogIn, LogOut} from "lucide-react";
 import {useRouter} from "next/navigation";
