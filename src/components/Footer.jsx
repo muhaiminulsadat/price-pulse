@@ -18,7 +18,7 @@ export default function Footer() {
             Made with <span className="text-orange-500 animate-pulse">❤️</span>{" "}
             by{" "}
             <span className="text-white font-bold hover:scale-110 transition-transform inline-block">
-              Sadat the Handsomest.
+              Sadat The Most Handsomest.
             </span>
           </p>
         </div>

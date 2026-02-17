@@ -40,7 +40,7 @@ export default async function Home() {
 
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 uppercase tracking-widest">
-            {user ? `👋 Welcome ${user.name}` : "🚀 Smart Price Tracking"}
+            {user ? `👋 Hi, ${user.name}!` : "🚀 Smart Price Tracking"}
           </div>
 
           <h2 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight bg-gradient-to-b from-white to-gray-400 bg-clip-text text-transparent">
