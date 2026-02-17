@@ -17,6 +17,7 @@ export const addProduct = async (url) => {
   if (!productData) return {error: "Could not find product details"};
 
   const session = await getSession();
+  
 
   const res = await Product.create({
     userId: session.user.id,
